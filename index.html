@@ -1,26 +1,34 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>RPG Escolar</title>
+<meta charset="UTF-8" />
+<title>RPG Escolar XP</title>
 
 <style>
 body{
-  font-family:Arial;
-  background:#111827;
+  font-family: Arial;
+  background:#0f172a;
   color:white;
   padding:20px;
 }
 
 button,input{
-  padding:6px;
+  padding:6px 10px;
   border-radius:6px;
   border:none;
   margin:3px;
+  cursor:pointer;
 }
 
-.tabs button{background:#1f2937;color:white}
-.tabs .ativa{background:#22c55e;color:black}
+.tabs button{
+  background:#1f2937;
+  color:white;
+}
+
+.tabs .ativo{
+  background:#22c55e;
+  color:black;
+}
 
 .card{
   background:#1f2937;
@@ -29,97 +37,122 @@ button,input{
   margin:8px 0;
   display:flex;
   gap:10px;
+  align-items:center;
 }
 
-.bar{height:8px;background:#374151;border-radius:10px}
-.fill{height:100%;background:#22c55e}
+.foto{
+  width:55px;
+  height:55px;
+  border-radius:50%;
+  object-fit:cover;
+  background:#333;
+}
 
-.botoes{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.bar{
+  height:8px;
+  background:#374151;
+  border-radius:10px;
+  margin-top:4px;
+}
+
+.fill{
+  height:100%;
+  background:#22c55e;
+}
 </style>
 </head>
 
 <body>
 
-<h1>⚔️ RPG Escolar</h1>
+<h1>⚔️ RPG Escolar XP</h1>
 
 <button onclick="baixar()">💾 Baixar dados</button>
-<input type="file" onchange="carregarArquivo(event)">
-<span style="font-size:12px">Carregar dados.json</span>
+<input type="file" onchange="carregar(event)">
 
 <hr>
 
-<div class="tabs">
-  <button onclick="trocarAno('6')" id="tab6">6º</button>
-  <button onclick="trocarAno('7')" id="tab7">7º</button>
-  <button onclick="trocarAno('8')" id="tab8">8º</button>
-  <button onclick="trocarAno('9')" id="tab9">9º</button>
-</div>
+<div class="tabs" id="tabs"></div>
 
 <br>
 
-<input id="nome" placeholder="Nome">
+<input id="nome" placeholder="Nome do aluno">
 <input id="classe" placeholder="Classe">
-<button onclick="addAluno()">Adicionar</button>
+<button onclick="addAluno()">Adicionar aluno</button>
+
+<hr>
 
 <div id="lista"></div>
 
 <script>
+/* =========================
+   VARIÁVEIS
+========================= */
 
-let dados = [];
+let dados=[];
 let anoAtual="6";
 
-
 /* =========================
-   CARREGAR dados.json automático
+   CARREGAR JSON
 ========================= */
-fetch("dados.json")
-  .then(r=>r.json())
-  .then(j=>{
-    dados=j;
-    render();
-  });
 
-
-/* =========================
-   TROCAR ANO
-========================= */
-function trocarAno(a){
-  anoAtual=a;
-  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("ativa"));
-  document.getElementById("tab"+a).classList.add("ativa");
+async function carregarDados(){
+  try{
+    const r=await fetch("dados.json?"+Date.now());
+    dados=await r.json();
+  }catch{
+    dados=[];
+  }
   render();
 }
 
+carregarDados();
+
+/* =========================
+   ANOS
+========================= */
+
+const anos=["6","7","8","9"];
+const tabs=document.getElementById("tabs");
+
+anos.forEach(a=>{
+  const b=document.createElement("button");
+  b.innerText=a+"º Ano";
+  b.onclick=()=>{anoAtual=a;render()};
+  tabs.appendChild(b);
+});
 
 /* =========================
    ADICIONAR
 ========================= */
-function addAluno(){
-  const nome=nomeInput.value;
-  const classe=classeInput.value;
 
-  if(!nome) return;
+function addAluno(){
+
+  if(!nome.value.trim()) return;
 
   dados.push({
+    id: Date.now(),
     ano:anoAtual,
-    nome,
-    classe,
+    nome:nome.value,
+    classe:classe.value,
     nivel:1,
-    xp:0
+    xp:0,
+    foto:""
   });
 
-  nomeInput.value="";
-  classeInput.value="";
+  nome.value="";
+  classe.value="";
 
   render();
 }
 
-
 /* =========================
    XP
 ========================= */
-function addXP(i,val){
-  let a=getAno()[i];
+
+function addXP(id,val){
+
+  const a=dados.find(x=>x.id===id);
+
   a.xp+=val;
 
   while(a.xp>=1000){
@@ -130,12 +163,13 @@ function addXP(i,val){
   render();
 }
 
-
 /* =========================
    EDITAR / EXCLUIR
 ========================= */
-function editar(i){
-  let a=getAno()[i];
+
+function editar(id){
+
+  const a=dados.find(x=>x.id===id);
 
   const n=prompt("Nome:",a.nome);
   if(!n) return;
@@ -148,35 +182,62 @@ function editar(i){
   render();
 }
 
-function excluir(i){
-  const lista=getAno();
-  dados.splice(dados.indexOf(lista[i]),1);
+function excluir(id){
+
+  dados=dados.filter(x=>x.id!==id);
+
   render();
 }
 
-
 /* =========================
-   LISTA POR ANO
+   FOTO
 ========================= */
-function getAno(){
-  return dados.filter(x=>x.ano===anoAtual);
-}
 
+function mudarFoto(id){
+
+  const input=document.createElement("input");
+  input.type="file";
+  input.accept="image/*";
+
+  input.onchange=()=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      dados.find(x=>x.id===id).foto=reader.result;
+      render();
+    };
+    reader.readAsDataURL(input.files[0]);
+  };
+
+  input.click();
+}
 
 /* =========================
    RENDER
 ========================= */
+
 function render(){
+
   lista.innerHTML="";
 
-  getAno()
-  .sort((a,b)=>(b.nivel*1000+b.xp)-(a.nivel*1000+a.xp))
-  .forEach((a,i)=>{
+  // atualizar abas
+  [...tabs.children].forEach(b=>{
+    b.classList.remove("ativo");
+    if(b.innerText.startsWith(anoAtual)) b.classList.add("ativo");
+  });
 
-    let pct=(a.xp/1000)*100;
+  const alunos=dados
+    .filter(a=>a.ano===anoAtual)
+    .sort((a,b)=>(b.nivel*1000+b.xp)-(a.nivel*1000+a.xp));
+
+  alunos.forEach(a=>{
+
+    const pct=(a.xp/1000)*100;
 
     lista.innerHTML+=`
       <div class="card">
+
+        <img class="foto" src="${a.foto||''}">
+
         <div style="flex:1">
           <strong>${a.nome}</strong> — Nv ${a.nivel}<br>
           ${a.classe}
@@ -185,27 +246,27 @@ function render(){
             <div class="fill" style="width:${pct}%"></div>
           </div>
 
-          XP ${a.xp}/1000
+          XP ${a.xp}/1000<br>
 
-          <div class="botoes">
-            <button onclick="addXP(${i},5)">+5</button>
-            <button onclick="addXP(${i},10)">+10</button>
-            <button onclick="addXP(${i},20)">+20</button>
-            <button onclick="addXP(${i},30)">+30</button>
-            <button onclick="addXP(${i},50)">+50</button>
-            <button onclick="editar(${i})">✏️</button>
-            <button onclick="excluir(${i})">🗑️</button>
-          </div>
+          <button onclick="addXP(${a.id},5)">+5</button>
+          <button onclick="addXP(${a.id},10)">+10</button>
+          <button onclick="addXP(${a.id},20)">+20</button>
+          <button onclick="addXP(${a.id},30)">+30</button>
+          <button onclick="addXP(${a.id},50)">+50</button>
+
+          <button onclick="editar(${a.id})">✏️</button>
+          <button onclick="excluir(${a.id})">🗑️</button>
+          <button onclick="mudarFoto(${a.id})">📷</button>
         </div>
       </div>
     `;
   });
 }
 
-
 /* =========================
-   SALVAR / CARREGAR ARQUIVO
+   SALVAR / CARREGAR LOCAL
 ========================= */
+
 function baixar(){
   const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
   const a=document.createElement("a");
@@ -214,7 +275,7 @@ function baixar(){
   a.click();
 }
 
-function carregarArquivo(e){
+function carregar(e){
   const reader=new FileReader();
   reader.onload=()=>{
     dados=JSON.parse(reader.result);
@@ -222,12 +283,7 @@ function carregarArquivo(e){
   };
   reader.readAsText(e.target.files[0]);
 }
-
-trocarAno("6");
-
-alert("JS carregou");
-  
 </script>
+
 </body>
 </html>
-
