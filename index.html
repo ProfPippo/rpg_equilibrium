@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>RPG Escolar - XP</title>
+<title>RPG Escolar Online</title>
 
 <style>
 body{
@@ -12,91 +12,51 @@ body{
   padding:20px;
 }
 
-/* ===== ABAS ===== */
-.tabs{
-  display:flex;
-  gap:8px;
-  margin-bottom:20px;
+input,button{
+  padding:8px;
+  border-radius:8px;
+  border:none;
+  margin:4px;
 }
 
-.tab{
-  background:#374151;
-  padding:8px 14px;
-  border-radius:10px;
-  cursor:pointer;
-}
+button{cursor:pointer}
 
-.tab.active{
-  background:#22c55e;
-  color:black;
-  font-weight:bold;
-}
+.tabs button{background:#1f2937;color:white}
+.tabs .ativa{background:#22c55e;color:black}
 
-/* ===== CARD ===== */
 .card{
   background:#1f2937;
   padding:12px;
-  border-radius:14px;
   margin:10px 0;
+  border-radius:12px;
   display:flex;
   gap:12px;
-  align-items:center;
 }
 
 .foto{
-  width:65px;
-  height:65px;
-  border-radius:50%;
-  object-fit:cover;
+  width:70px;height:70px;border-radius:50%;object-fit:cover;
   background:#374151;
 }
 
 .bar{
-  height:10px;
-  background:#374151;
-  border-radius:8px;
-  overflow:hidden;
+  height:10px;background:#374151;border-radius:10px;overflow:hidden;
 }
 
-.fill{
-  height:100%;
-  background:#22c55e;
-}
+.fill{height:100%;background:#22c55e}
 
-button,input{
-  padding:6px 8px;
-  border-radius:6px;
-  border:none;
-  margin:2px;
-  cursor:pointer;
-}
-
-.botoes{
-  display:flex;
-  flex-wrap:wrap;
-  gap:4px;
-  margin-top:5px;
-}
-
-.rank{
-  background:#0f172a;
-  padding:3px 6px;
-  border-radius:6px;
-  margin-left:6px;
-}
+.botoes{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 </style>
 </head>
 
 <body>
 
-<h1>⚔️ RPG Equilibrium - XP de Geografia </h1>
+<h1>⚔️ RPG Escolar Online</h1>
 
-<!-- ABAS -->
 <div class="tabs">
-  <div class="tab active" onclick="trocarAno('6')">6º Ano</div>
-  <div class="tab" onclick="trocarAno('7')">7º Ano</div>
-  <div class="tab" onclick="trocarAno('8')">8º Ano</div>
-  <div class="tab" onclick="trocarAno('9')">9º Ano</div>
+  <button onclick="trocarAno('6')" id="tab6">6º</button>
+  <button onclick="trocarAno('7')" id="tab7">7º</button>
+  <button onclick="trocarAno('8')" id="tab8">8º</button>
+  <button onclick="trocarAno('9')" id="tab9">9º</button>
 </div>
 
 <h3>Adicionar aluno</h3>
@@ -108,98 +68,101 @@ button,input{
 
 
 <script>
+const API = "https://script.google.com/macros/s/AKfycbzF1mHyHAeqecPf1bR93Pt2Ni66t-YYbrqWBjs5vJoW4ixnzL6ujF1SQ-eUxxjsIpG9/exec";
+
+let dados = [];
 let anoAtual = "6";
 
-/* dados separados por ano */
-let banco = JSON.parse(localStorage.getItem("bancoXP")) || {
-  "6":[],
-  "7":[],
-  "8":[],
-  "9":[]
-};
 
-function salvar(){
-  localStorage.setItem("bancoXP", JSON.stringify(banco));
-}
+async function carregar(){
+  const res = await fetch(API);
+  dados = await res.json();
 
-function alunos(){
-  return banco[anoAtual];
-}
-
-/* ===== TROCAR ABA ===== */
-function trocarAno(ano){
-  anoAtual = ano;
-
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  event.target.classList.add("active");
+  if(dados.length === 0){
+    dados = [["Ano","Nome","Classe","Nivel","XP","Foto"]];
+  }
 
   render();
 }
 
-/* ===== ADICIONAR ===== */
+
+async function salvar(){
+  await fetch(API,{
+    method:"POST",
+    body:JSON.stringify(dados)
+  });
+}
+
+
+function trocarAno(a){
+  anoAtual=a;
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("ativa"));
+  document.getElementById("tab"+a).classList.add("ativa");
+  render();
+}
+
+
 function addAluno(){
   const nome = document.getElementById("nome").value;
   const classe = document.getElementById("classe").value;
 
   if(!nome) return;
 
-  alunos().push({
-    nome,
-    classe,
-    xp:0,
-    nivel:1,
-    foto:""
-  });
-
+  dados.push([anoAtual,nome,classe,1,0,""]);
   salvar();
   render();
 }
 
-/* ===== XP ===== */
-function addXP(i,valor){
-  let a = alunos()[i];
 
-  a.xp += valor;
+function addXP(index,val){
+  const alunos = getAlunosDoAno();
 
-  while(a.xp >= 1000){
-    a.xp -= 1000;
-    a.nivel++;
+  alunos[index][4]+=val;
+
+  while(alunos[index][4]>=1000){
+    alunos[index][4]-=1000;
+    alunos[index][3]++;
   }
 
   salvar();
   render();
 }
 
-/* ===== EDITAR / EXCLUIR ===== */
-function editarAluno(i){
-  const nome = prompt("Novo nome:", alunos()[i].nome);
-  if(nome===null) return;
 
-  const classe = prompt("Nova classe:", alunos()[i].classe);
-  if(classe===null) return;
+function editar(index){
+  const alunos = getAlunosDoAno();
+  const a = alunos[index];
 
-  alunos()[i].nome = nome;
-  alunos()[i].classe = classe;
+  const nome = prompt("Nome:",a[1]);
+  if(!nome) return;
+
+  const classe = prompt("Classe:",a[2]);
+
+  a[1]=nome;
+  a[2]=classe;
 
   salvar();
   render();
 }
 
-function excluirAluno(i){
-  if(confirm("Excluir aluno?")){
-    alunos().splice(i,1);
-    salvar();
-    render();
-  }
+
+function excluir(index){
+  const alunos = getAlunosDoAno();
+  const realIndex = dados.indexOf(alunos[index]);
+
+  dados.splice(realIndex,1);
+  salvar();
+  render();
 }
 
-/* ===== FOTO ===== */
-function mudarFoto(e,i){
-  const file = e.target.files[0];
+
+function foto(event,index){
+  const file = event.target.files[0];
   const reader = new FileReader();
 
-  reader.onload = x=>{
-    alunos()[i].foto = x.target.result;
+  reader.onload = e=>{
+    const alunos = getAlunosDoAno();
+    alunos[index][5]=e.target.result;
     salvar();
     render();
   };
@@ -207,39 +170,39 @@ function mudarFoto(e,i){
   reader.readAsDataURL(file);
 }
 
-/* ===== RENDER ===== */
+
+function getAlunosDoAno(){
+  return dados.filter((r,i)=> i>0 && r[0]===anoAtual);
+}
+
+
 function render(){
+  const div = document.getElementById("lista");
+  div.innerHTML="";
 
-  const lista = document.getElementById("lista");
-  lista.innerHTML = "";
+  const alunos = getAlunosDoAno();
 
-  alunos().sort((a,b)=>(b.nivel*1000+b.xp)-(a.nivel*1000+a.xp));
+  alunos.sort((a,b)=>(b[3]*1000+b[4])-(a[3]*1000+a[4]));
 
-  alunos().forEach((a,i)=>{
+  alunos.forEach((a,i)=>{
 
-    const p = (a.xp/1000)*100;
+    const pct=(a[4]/1000)*100;
 
-    lista.innerHTML += `
+    div.innerHTML+=`
     <div class="card">
 
       <label>
-        <img src="${a.foto}" class="foto">
-        <input type="file" accept="image/*" style="display:none"
-          onchange="mudarFoto(event,${i})">
+        <img src="${a[5]}" class="foto">
+        <input type="file" style="display:none" accept="image/*" onchange="foto(event,${i})">
       </label>
 
       <div style="flex:1">
 
-        <b>${a.nome}</b>
-        <span class="rank">Nv ${a.nivel}</span>
-        <br>
-        Classe: ${a.classe}
+        <strong>${a[1]}</strong> — Nv ${a[3]}<br>
+        ${a[2]}
 
-        <div class="bar">
-          <div class="fill" style="width:${p}%"></div>
-        </div>
-
-        XP: ${a.xp}/1000
+        <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+        XP ${a[4]}/1000
 
         <div class="botoes">
           <button onclick="addXP(${i},5)">+5</button>
@@ -250,20 +213,20 @@ function render(){
         </div>
 
         <div class="botoes">
-          <button onclick="editarAluno(${i})">✏️</button>
-          <button onclick="excluirAluno(${i})">🗑️</button>
+          <button onclick="editar(${i})">✏️</button>
+          <button onclick="excluir(${i})">🗑️</button>
         </div>
 
       </div>
 
-    </div>
-    `;
+    </div>`;
   });
 }
 
-render();
+
+carregar();
+trocarAno("6");
 </script>
 
 </body>
 </html>
-
