@@ -4,8 +4,6 @@
 <meta charset="UTF-8"/>
 <title>RPG Escolar</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <style>
 body{
   font-family:Arial;
@@ -52,17 +50,17 @@ button,input{
 <h1>⚔️ RPG Escolar</h1>
 
 <div class="tabs">
-  <button id="tab6">6º Ano</button>
-  <button id="tab7">7º Ano</button>
-  <button id="tab8">8º Ano</button>
-  <button id="tab9">9º Ano</button>
+  <button onclick="trocarAno('6')">6º Ano</button>
+  <button onclick="trocarAno('7')">7º Ano</button>
+  <button onclick="trocarAno('8')">8º Ano</button>
+  <button onclick="trocarAno('9')">9º Ano</button>
 </div>
 
 <br>
 
 <input id="nome" placeholder="Nome">
 <input id="classe" placeholder="Classe">
-<button id="btnAdd">Adicionar</button>
+<button onclick="addAluno()">Adicionar</button>
 
 <hr>
 
@@ -70,37 +68,45 @@ button,input{
 
 <script>
 /* =========================
-   SUPABASE
+   CONFIG
 ========================= */
 
-const supabase = window.supabase.createClient(
-  "https://vfuebmcphgzwzjrgqadb.supabase.co",
-  "sb_publishable_vcF6RN4YQJQ6PY4O5QOhLw_CvvJALr6"
-);
+const URL = "https://vfuebmcphgzwzjrgqadb.supabase.co/rest/v1/alunos";
+const KEY = "sb_publishable_vcF6RN4YQJQ6PY4O5QOhLw_CvvJALr6";
 
 let alunos=[];
 let anoAtual="6";
 
 
 /* =========================
-   EVENTOS (mais seguro)
+   HELPERS API
 ========================= */
 
-tab6.onclick=()=>trocarAno("6");
-tab7.onclick=()=>trocarAno("7");
-tab8.onclick=()=>trocarAno("8");
-tab9.onclick=()=>trocarAno("9");
-btnAdd.onclick=addAluno;
+async function api(method, body=null, filtro=""){
+  const r = await fetch(URL+filtro,{
+    method,
+    headers:{
+      "apikey":KEY,
+      "Authorization":"Bearer "+KEY,
+      "Content-Type":"application/json",
+      "Prefer":"return=representation"
+    },
+    body: body ? JSON.stringify(body) : null
+  });
+
+  return r.json();
+}
 
 
 /* =========================
    CARREGAR
 ========================= */
+
 async function carregar(){
-  const {data}=await supabase.from("alunos").select("*");
-  alunos=data||[];
+  alunos = await api("GET");
   render();
 }
+
 carregar();
 
 
@@ -109,12 +115,6 @@ carregar();
 ========================= */
 function trocarAno(a){
   anoAtual=a;
-
-  document.querySelectorAll(".tabs button")
-    .forEach(b=>b.classList.remove("ativa"));
-
-  document.getElementById("tab"+a).classList.add("ativa");
-
   render();
 }
 
@@ -126,7 +126,7 @@ async function addAluno(){
 
   if(!nome.value) return;
 
-  await supabase.from("alunos").insert({
+  await api("POST",{
     ano:anoAtual,
     nome:nome.value,
     classe:classe.value,
@@ -143,9 +143,9 @@ async function addAluno(){
 
 
 /* =========================
-   BUSCAR ALUNO POR ID
+   BUSCAR
 ========================= */
-function getAluno(id){
+function get(id){
   return alunos.find(a=>a.id===id);
 }
 
@@ -155,7 +155,7 @@ function getAluno(id){
 ========================= */
 async function addXP(id,val){
 
-  let a=getAluno(id);
+  let a=get(id);
 
   let xp=a.xp+val;
   let nivel=a.nivel;
@@ -165,10 +165,7 @@ async function addXP(id,val){
     nivel++;
   }
 
-  await supabase
-    .from("alunos")
-    .update({xp,nivel})
-    .eq("id",id);
+  await api("PATCH",{xp,nivel},`?id=eq.${id}`);
 
   carregar();
 }
@@ -179,17 +176,14 @@ async function addXP(id,val){
 ========================= */
 async function editar(id){
 
-  let a=getAluno(id);
+  let a=get(id);
 
   const n=prompt("Nome:",a.nome);
   if(!n) return;
 
   const c=prompt("Classe:",a.classe);
 
-  await supabase
-    .from("alunos")
-    .update({nome:n,classe:c})
-    .eq("id",id);
+  await api("PATCH",{nome:n,classe:c},`?id=eq.${id}`);
 
   carregar();
 }
@@ -202,10 +196,7 @@ async function excluir(id){
 
   if(!confirm("Excluir aluno?")) return;
 
-  await supabase
-    .from("alunos")
-    .delete()
-    .eq("id",id);
+  await api("DELETE",null,`?id=eq.${id}`);
 
   carregar();
 }
@@ -224,11 +215,7 @@ function uploadFoto(id){
     const reader=new FileReader();
 
     reader.onload=async ()=>{
-      await supabase
-        .from("alunos")
-        .update({foto:reader.result})
-        .eq("id",id);
-
+      await api("PATCH",{foto:reader.result},`?id=eq.${id}`);
       carregar();
     };
 
@@ -255,9 +242,7 @@ function render(){
 
       lista.innerHTML+=`
         <div class="card">
-
           <img class="foto" src="${a.foto||''}">
-
           <div style="flex:1">
             <strong>${a.nome}</strong> — Nv ${a.nivel}<br>
             ${a.classe}
@@ -282,9 +267,6 @@ function render(){
       `;
     });
 }
-
-trocarAno("6");
-
 </script>
 </body>
 </html>
