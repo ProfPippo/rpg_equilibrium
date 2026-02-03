@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8"/>
 <title>RPG Escolar</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,8 +13,6 @@ body{
   color:white;
   padding:20px;
 }
-
-h1{margin-bottom:10px}
 
 button,input{
   padding:6px;
@@ -54,17 +52,17 @@ button,input{
 <h1>⚔️ RPG Escolar</h1>
 
 <div class="tabs">
-  <button onclick="trocarAno('6')" id="tab6">6º Ano</button>
-  <button onclick="trocarAno('7')" id="tab7">7º Ano</button>
-  <button onclick="trocarAno('8')" id="tab8">8º Ano</button>
-  <button onclick="trocarAno('9')" id="tab9">9º Ano</button>
+  <button id="tab6">6º Ano</button>
+  <button id="tab7">7º Ano</button>
+  <button id="tab8">8º Ano</button>
+  <button id="tab9">9º Ano</button>
 </div>
 
 <br>
 
 <input id="nome" placeholder="Nome">
 <input id="classe" placeholder="Classe">
-<button onclick="addAluno()">Adicionar</button>
+<button id="btnAdd">Adicionar</button>
 
 <hr>
 
@@ -72,7 +70,7 @@ button,input{
 
 <script>
 /* =========================
-   🔗 CONEXÃO SUPABASE
+   SUPABASE
 ========================= */
 
 const supabase = window.supabase.createClient(
@@ -85,14 +83,24 @@ let anoAtual="6";
 
 
 /* =========================
+   EVENTOS (mais seguro)
+========================= */
+
+tab6.onclick=()=>trocarAno("6");
+tab7.onclick=()=>trocarAno("7");
+tab8.onclick=()=>trocarAno("8");
+tab9.onclick=()=>trocarAno("9");
+btnAdd.onclick=addAluno;
+
+
+/* =========================
    CARREGAR
 ========================= */
 async function carregar(){
   const {data}=await supabase.from("alunos").select("*");
-  alunos=data || [];
+  alunos=data||[];
   render();
 }
-
 carregar();
 
 
@@ -135,9 +143,19 @@ async function addAluno(){
 
 
 /* =========================
+   BUSCAR ALUNO POR ID
+========================= */
+function getAluno(id){
+  return alunos.find(a=>a.id===id);
+}
+
+
+/* =========================
    XP
 ========================= */
-async function addXP(a,val){
+async function addXP(id,val){
+
+  let a=getAluno(id);
 
   let xp=a.xp+val;
   let nivel=a.nivel;
@@ -150,7 +168,7 @@ async function addXP(a,val){
   await supabase
     .from("alunos")
     .update({xp,nivel})
-    .eq("id",a.id);
+    .eq("id",id);
 
   carregar();
 }
@@ -159,7 +177,9 @@ async function addXP(a,val){
 /* =========================
    EDITAR
 ========================= */
-async function editar(a){
+async function editar(id){
+
+  let a=getAluno(id);
 
   const n=prompt("Nome:",a.nome);
   if(!n) return;
@@ -169,7 +189,7 @@ async function editar(a){
   await supabase
     .from("alunos")
     .update({nome:n,classe:c})
-    .eq("id",a.id);
+    .eq("id",id);
 
   carregar();
 }
@@ -178,13 +198,14 @@ async function editar(a){
 /* =========================
    EXCLUIR
 ========================= */
-async function excluir(a){
+async function excluir(id){
+
   if(!confirm("Excluir aluno?")) return;
 
   await supabase
     .from("alunos")
     .delete()
-    .eq("id",a.id);
+    .eq("id",id);
 
   carregar();
 }
@@ -193,7 +214,7 @@ async function excluir(a){
 /* =========================
    FOTO
 ========================= */
-function uploadFoto(a){
+function uploadFoto(id){
 
   const input=document.createElement("input");
   input.type="file";
@@ -206,7 +227,7 @@ function uploadFoto(a){
       await supabase
         .from("alunos")
         .update({foto:reader.result})
-        .eq("id",a.id);
+        .eq("id",id);
 
       carregar();
     };
@@ -234,6 +255,7 @@ function render(){
 
       lista.innerHTML+=`
         <div class="card">
+
           <img class="foto" src="${a.foto||''}">
 
           <div style="flex:1">
@@ -244,19 +266,17 @@ function render(){
               <div class="fill" style="width:${pct}%"></div>
             </div>
 
-            XP ${a.xp}/1000
+            XP ${a.xp}/1000<br>
 
-            <br>
+            <button onclick="addXP(${a.id},5)">+5</button>
+            <button onclick="addXP(${a.id},10)">+10</button>
+            <button onclick="addXP(${a.id},20)">+20</button>
+            <button onclick="addXP(${a.id},30)">+30</button>
+            <button onclick="addXP(${a.id},50)">+50</button>
 
-            <button onclick='addXP(${JSON.stringify(a)},5)'>+5</button>
-            <button onclick='addXP(${JSON.stringify(a)},10)'>+10</button>
-            <button onclick='addXP(${JSON.stringify(a)},20)'>+20</button>
-            <button onclick='addXP(${JSON.stringify(a)},30)'>+30</button>
-            <button onclick='addXP(${JSON.stringify(a)},50)'>+50</button>
-
-            <button onclick='editar(${JSON.stringify(a)})'>✏️</button>
-            <button onclick='excluir(${JSON.stringify(a)})'>🗑️</button>
-            <button onclick='uploadFoto(${JSON.stringify(a)})'>📷</button>
+            <button onclick="editar(${a.id})">✏️</button>
+            <button onclick="excluir(${a.id})">🗑️</button>
+            <button onclick="uploadFoto(${a.id})">📷</button>
           </div>
         </div>
       `;
