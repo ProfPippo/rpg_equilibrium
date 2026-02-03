@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>RPG Escolar - XP</title>
+
+<style>
+body{
+  font-family: Arial;
+  background:#111827;
+  color:white;
+  padding:20px;
+}
+
+/* ===== ABAS ===== */
+.tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:20px;
+}
+
+.tab{
+  background:#374151;
+  padding:8px 14px;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.tab.active{
+  background:#22c55e;
+  color:black;
+  font-weight:bold;
+}
+
+/* ===== CARD ===== */
+.card{
+  background:#1f2937;
+  padding:12px;
+  border-radius:14px;
+  margin:10px 0;
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+
+.foto{
+  width:65px;
+  height:65px;
+  border-radius:50%;
+  object-fit:cover;
+  background:#374151;
+}
+
+.bar{
+  height:10px;
+  background:#374151;
+  border-radius:8px;
+  overflow:hidden;
+}
+
+.fill{
+  height:100%;
+  background:#22c55e;
+}
+
+button,input{
+  padding:6px 8px;
+  border-radius:6px;
+  border:none;
+  margin:2px;
+  cursor:pointer;
+}
+
+.botoes{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin-top:5px;
+}
+
+.rank{
+  background:#0f172a;
+  padding:3px 6px;
+  border-radius:6px;
+  margin-left:6px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>⚔️ RPG Equilibrium - XP de Geografia </h1>
+
+<!-- ABAS -->
+<div class="tabs">
+  <div class="tab active" onclick="trocarAno('6')">6º Ano</div>
+  <div class="tab" onclick="trocarAno('7')">7º Ano</div>
+  <div class="tab" onclick="trocarAno('8')">8º Ano</div>
+  <div class="tab" onclick="trocarAno('9')">9º Ano</div>
+</div>
+
+<h3>Adicionar aluno</h3>
+<input id="nome" placeholder="Nome">
+<input id="classe" placeholder="Classe">
+<button onclick="addAluno()">Cadastrar</button>
+
+<div id="lista"></div>
+
+
+<script>
+let anoAtual = "6";
+
+/* dados separados por ano */
+let banco = JSON.parse(localStorage.getItem("bancoXP")) || {
+  "6":[],
+  "7":[],
+  "8":[],
+  "9":[]
+};
+
+function salvar(){
+  localStorage.setItem("bancoXP", JSON.stringify(banco));
+}
+
+function alunos(){
+  return banco[anoAtual];
+}
+
+/* ===== TROCAR ABA ===== */
+function trocarAno(ano){
+  anoAtual = ano;
+
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  event.target.classList.add("active");
+
+  render();
+}
+
+/* ===== ADICIONAR ===== */
+function addAluno(){
+  const nome = document.getElementById("nome").value;
+  const classe = document.getElementById("classe").value;
+
+  if(!nome) return;
+
+  alunos().push({
+    nome,
+    classe,
+    xp:0,
+    nivel:1,
+    foto:""
+  });
+
+  salvar();
+  render();
+}
+
+/* ===== XP ===== */
+function addXP(i,valor){
+  let a = alunos()[i];
+
+  a.xp += valor;
+
+  while(a.xp >= 1000){
+    a.xp -= 1000;
+    a.nivel++;
+  }
+
+  salvar();
+  render();
+}
+
+/* ===== EDITAR / EXCLUIR ===== */
+function editarAluno(i){
+  const nome = prompt("Novo nome:", alunos()[i].nome);
+  if(nome===null) return;
+
+  const classe = prompt("Nova classe:", alunos()[i].classe);
+  if(classe===null) return;
+
+  alunos()[i].nome = nome;
+  alunos()[i].classe = classe;
+
+  salvar();
+  render();
+}
+
+function excluirAluno(i){
+  if(confirm("Excluir aluno?")){
+    alunos().splice(i,1);
+    salvar();
+    render();
+  }
+}
+
+/* ===== FOTO ===== */
+function mudarFoto(e,i){
+  const file = e.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = x=>{
+    alunos()[i].foto = x.target.result;
+    salvar();
+    render();
+  };
+
+  reader.readAsDataURL(file);
+}
+
+/* ===== RENDER ===== */
+function render(){
+
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
+
+  alunos().sort((a,b)=>(b.nivel*1000+b.xp)-(a.nivel*1000+a.xp));
+
+  alunos().forEach((a,i)=>{
+
+    const p = (a.xp/1000)*100;
+
+    lista.innerHTML += `
+    <div class="card">
+
+      <label>
+        <img src="${a.foto}" class="foto">
+        <input type="file" accept="image/*" style="display:none"
+          onchange="mudarFoto(event,${i})">
+      </label>
+
+      <div style="flex:1">
+
+        <b>${a.nome}</b>
+        <span class="rank">Nv ${a.nivel}</span>
+        <br>
+        Classe: ${a.classe}
+
+        <div class="bar">
+          <div class="fill" style="width:${p}%"></div>
+        </div>
+
+        XP: ${a.xp}/1000
+
+        <div class="botoes">
+          <button onclick="addXP(${i},5)">+5</button>
+          <button onclick="addXP(${i},10)">+10</button>
+          <button onclick="addXP(${i},20)">+20</button>
+          <button onclick="addXP(${i},30)">+30</button>
+          <button onclick="addXP(${i},50)">+50</button>
+        </div>
+
+        <div class="botoes">
+          <button onclick="editarAluno(${i})">✏️</button>
+          <button onclick="excluirAluno(${i})">🗑️</button>
+        </div>
+
+      </div>
+
+    </div>
+    `;
+  });
+}
+
+render();
+</script>
+
+</body>
+</html>
