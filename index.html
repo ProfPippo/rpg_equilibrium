@@ -1,268 +1,270 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>RPG Escolar - XP</title>
+<meta charset="UTF-8" />
+<title>RPG Escolar</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 body{
-  font-family: Arial;
+  font-family:Arial;
   background:#111827;
   color:white;
   padding:20px;
 }
 
-/* ===== ABAS ===== */
-.tabs{
-  display:flex;
-  gap:8px;
-  margin-bottom:20px;
+h1{margin-bottom:10px}
+
+button,input{
+  padding:6px;
+  border-radius:6px;
+  border:none;
+  margin:3px;
 }
 
-.tab{
-  background:#374151;
-  padding:8px 14px;
-  border-radius:10px;
-  cursor:pointer;
-}
+.tabs button{background:#1f2937;color:white}
+.tabs .ativa{background:#22c55e;color:black}
 
-.tab.active{
-  background:#22c55e;
-  color:black;
-  font-weight:bold;
-}
-
-/* ===== CARD ===== */
 .card{
   background:#1f2937;
-  padding:12px;
-  border-radius:14px;
-  margin:10px 0;
+  padding:10px;
+  border-radius:10px;
+  margin:8px 0;
   display:flex;
-  gap:12px;
+  gap:10px;
   align-items:center;
 }
 
+.bar{height:8px;background:#374151;border-radius:10px}
+.fill{height:100%;background:#22c55e}
+
 .foto{
-  width:65px;
-  height:65px;
+  width:60px;
+  height:60px;
   border-radius:50%;
   object-fit:cover;
-  background:#374151;
-}
-
-.bar{
-  height:10px;
-  background:#374151;
-  border-radius:8px;
-  overflow:hidden;
-}
-
-.fill{
-  height:100%;
-  background:#22c55e;
-}
-
-button,input{
-  padding:6px 8px;
-  border-radius:6px;
-  border:none;
-  margin:2px;
-  cursor:pointer;
-}
-
-.botoes{
-  display:flex;
-  flex-wrap:wrap;
-  gap:4px;
-  margin-top:5px;
-}
-
-.rank{
-  background:#0f172a;
-  padding:3px 6px;
-  border-radius:6px;
-  margin-left:6px;
+  background:#333;
 }
 </style>
 </head>
 
 <body>
 
-<h1>⚔️ RPG Equilibrium - XP de Geografia </h1>
+<h1>⚔️ RPG Escolar</h1>
 
-<!-- ABAS -->
 <div class="tabs">
-  <div class="tab active" onclick="trocarAno('6')">6º Ano</div>
-  <div class="tab" onclick="trocarAno('7')">7º Ano</div>
-  <div class="tab" onclick="trocarAno('8')">8º Ano</div>
-  <div class="tab" onclick="trocarAno('9')">9º Ano</div>
+  <button onclick="trocarAno('6')" id="tab6">6º Ano</button>
+  <button onclick="trocarAno('7')" id="tab7">7º Ano</button>
+  <button onclick="trocarAno('8')" id="tab8">8º Ano</button>
+  <button onclick="trocarAno('9')" id="tab9">9º Ano</button>
 </div>
 
-<h3>Adicionar aluno</h3>
+<br>
+
 <input id="nome" placeholder="Nome">
 <input id="classe" placeholder="Classe">
-<button onclick="addAluno()">Cadastrar</button>
+<button onclick="addAluno()">Adicionar</button>
+
+<hr>
 
 <div id="lista"></div>
 
-
 <script>
-let anoAtual = "6";
+/* =========================
+   🔗 CONEXÃO SUPABASE
+========================= */
 
-/* dados separados por ano */
-let banco = JSON.parse(localStorage.getItem("bancoXP")) || {
-  "6":[],
-  "7":[],
-  "8":[],
-  "9":[]
-};
+const supabase = window.supabase.createClient(
+  "https://vfuebmcphgzwzjrgqadb.supabase.co",
+  "sb_publishable_vcF6RN4YQJQ6PY4O5QOhLw_CvvJALr6"
+);
 
-function salvar(){
-  localStorage.setItem("bancoXP", JSON.stringify(banco));
+let alunos=[];
+let anoAtual="6";
+
+
+/* =========================
+   CARREGAR
+========================= */
+async function carregar(){
+  const {data}=await supabase.from("alunos").select("*");
+  alunos=data || [];
+  render();
 }
 
-function alunos(){
-  return banco[anoAtual];
-}
+carregar();
 
-/* ===== TROCAR ABA ===== */
-function trocarAno(ano){
-  anoAtual = ano;
 
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  event.target.classList.add("active");
+/* =========================
+   TROCAR ANO
+========================= */
+function trocarAno(a){
+  anoAtual=a;
+
+  document.querySelectorAll(".tabs button")
+    .forEach(b=>b.classList.remove("ativa"));
+
+  document.getElementById("tab"+a).classList.add("ativa");
 
   render();
 }
 
-/* ===== ADICIONAR ===== */
-function addAluno(){
-  const nome = document.getElementById("nome").value;
-  const classe = document.getElementById("classe").value;
 
-  if(!nome) return;
+/* =========================
+   ADICIONAR
+========================= */
+async function addAluno(){
 
-  alunos().push({
-    nome,
-    classe,
-    xp:0,
+  if(!nome.value) return;
+
+  await supabase.from("alunos").insert({
+    ano:anoAtual,
+    nome:nome.value,
+    classe:classe.value,
     nivel:1,
+    xp:0,
     foto:""
   });
 
-  salvar();
-  render();
+  nome.value="";
+  classe.value="";
+
+  carregar();
 }
 
-/* ===== XP ===== */
-function addXP(i,valor){
-  let a = alunos()[i];
 
-  a.xp += valor;
+/* =========================
+   XP
+========================= */
+async function addXP(a,val){
 
-  while(a.xp >= 1000){
-    a.xp -= 1000;
-    a.nivel++;
+  let xp=a.xp+val;
+  let nivel=a.nivel;
+
+  while(xp>=1000){
+    xp-=1000;
+    nivel++;
   }
 
-  salvar();
-  render();
+  await supabase
+    .from("alunos")
+    .update({xp,nivel})
+    .eq("id",a.id);
+
+  carregar();
 }
 
-/* ===== EDITAR / EXCLUIR ===== */
-function editarAluno(i){
-  const nome = prompt("Novo nome:", alunos()[i].nome);
-  if(nome===null) return;
 
-  const classe = prompt("Nova classe:", alunos()[i].classe);
-  if(classe===null) return;
+/* =========================
+   EDITAR
+========================= */
+async function editar(a){
 
-  alunos()[i].nome = nome;
-  alunos()[i].classe = classe;
+  const n=prompt("Nome:",a.nome);
+  if(!n) return;
 
-  salvar();
-  render();
+  const c=prompt("Classe:",a.classe);
+
+  await supabase
+    .from("alunos")
+    .update({nome:n,classe:c})
+    .eq("id",a.id);
+
+  carregar();
 }
 
-function excluirAluno(i){
-  if(confirm("Excluir aluno?")){
-    alunos().splice(i,1);
-    salvar();
-    render();
-  }
+
+/* =========================
+   EXCLUIR
+========================= */
+async function excluir(a){
+  if(!confirm("Excluir aluno?")) return;
+
+  await supabase
+    .from("alunos")
+    .delete()
+    .eq("id",a.id);
+
+  carregar();
 }
 
-/* ===== FOTO ===== */
-function mudarFoto(e,i){
-  const file = e.target.files[0];
-  const reader = new FileReader();
 
-  reader.onload = x=>{
-    alunos()[i].foto = x.target.result;
-    salvar();
-    render();
+/* =========================
+   FOTO
+========================= */
+function uploadFoto(a){
+
+  const input=document.createElement("input");
+  input.type="file";
+  input.accept="image/*";
+
+  input.onchange=()=>{
+    const reader=new FileReader();
+
+    reader.onload=async ()=>{
+      await supabase
+        .from("alunos")
+        .update({foto:reader.result})
+        .eq("id",a.id);
+
+      carregar();
+    };
+
+    reader.readAsDataURL(input.files[0]);
   };
 
-  reader.readAsDataURL(file);
+  input.click();
 }
 
-/* ===== RENDER ===== */
+
+/* =========================
+   RENDER
+========================= */
 function render(){
 
-  const lista = document.getElementById("lista");
-  lista.innerHTML = "";
+  lista.innerHTML="";
 
-  alunos().sort((a,b)=>(b.nivel*1000+b.xp)-(a.nivel*1000+a.xp));
+  alunos
+    .filter(a=>a.ano===anoAtual)
+    .sort((a,b)=>(b.nivel*1000+b.xp)-(a.nivel*1000+a.xp))
+    .forEach(a=>{
 
-  alunos().forEach((a,i)=>{
+      let pct=(a.xp/1000)*100;
 
-    const p = (a.xp/1000)*100;
+      lista.innerHTML+=`
+        <div class="card">
+          <img class="foto" src="${a.foto||''}">
 
-    lista.innerHTML += `
-    <div class="card">
+          <div style="flex:1">
+            <strong>${a.nome}</strong> — Nv ${a.nivel}<br>
+            ${a.classe}
 
-      <label>
-        <img src="${a.foto}" class="foto">
-        <input type="file" accept="image/*" style="display:none"
-          onchange="mudarFoto(event,${i})">
-      </label>
+            <div class="bar">
+              <div class="fill" style="width:${pct}%"></div>
+            </div>
 
-      <div style="flex:1">
+            XP ${a.xp}/1000
 
-        <b>${a.nome}</b>
-        <span class="rank">Nv ${a.nivel}</span>
-        <br>
-        Classe: ${a.classe}
+            <br>
 
-        <div class="bar">
-          <div class="fill" style="width:${p}%"></div>
+            <button onclick='addXP(${JSON.stringify(a)},5)'>+5</button>
+            <button onclick='addXP(${JSON.stringify(a)},10)'>+10</button>
+            <button onclick='addXP(${JSON.stringify(a)},20)'>+20</button>
+            <button onclick='addXP(${JSON.stringify(a)},30)'>+30</button>
+            <button onclick='addXP(${JSON.stringify(a)},50)'>+50</button>
+
+            <button onclick='editar(${JSON.stringify(a)})'>✏️</button>
+            <button onclick='excluir(${JSON.stringify(a)})'>🗑️</button>
+            <button onclick='uploadFoto(${JSON.stringify(a)})'>📷</button>
+          </div>
         </div>
-
-        XP: ${a.xp}/1000
-
-        <div class="botoes">
-          <button onclick="addXP(${i},5)">+5</button>
-          <button onclick="addXP(${i},10)">+10</button>
-          <button onclick="addXP(${i},20)">+20</button>
-          <button onclick="addXP(${i},30)">+30</button>
-          <button onclick="addXP(${i},50)">+50</button>
-        </div>
-
-        <div class="botoes">
-          <button onclick="editarAluno(${i})">✏️</button>
-          <button onclick="excluirAluno(${i})">🗑️</button>
-        </div>
-
-      </div>
-
-    </div>
-    `;
-  });
+      `;
+    });
 }
 
-render();
-</script>
+trocarAno("6");
 
+</script>
 </body>
 </html>
