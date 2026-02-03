@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8"/>
+<meta charset="UTF-8">
 <title>RPG Escolar</title>
 
 <style>
@@ -29,19 +29,12 @@ button,input{
   margin:8px 0;
   display:flex;
   gap:10px;
-  align-items:center;
 }
 
 .bar{height:8px;background:#374151;border-radius:10px}
 .fill{height:100%;background:#22c55e}
 
-.foto{
-  width:60px;
-  height:60px;
-  border-radius:50%;
-  object-fit:cover;
-  background:#333;
-}
+.botoes{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
 </style>
 </head>
 
@@ -49,11 +42,17 @@ button,input{
 
 <h1>⚔️ RPG Escolar</h1>
 
+<button onclick="baixar()">💾 Baixar dados</button>
+<input type="file" onchange="carregarArquivo(event)">
+<span style="font-size:12px">Carregar dados.json</span>
+
+<hr>
+
 <div class="tabs">
-  <button onclick="trocarAno('6')">6º Ano</button>
-  <button onclick="trocarAno('7')">7º Ano</button>
-  <button onclick="trocarAno('8')">8º Ano</button>
-  <button onclick="trocarAno('9')">9º Ano</button>
+  <button onclick="trocarAno('6')" id="tab6">6º</button>
+  <button onclick="trocarAno('7')" id="tab7">7º</button>
+  <button onclick="trocarAno('8')" id="tab8">8º</button>
+  <button onclick="trocarAno('9')" id="tab9">9º</button>
 </div>
 
 <br>
@@ -62,52 +61,23 @@ button,input{
 <input id="classe" placeholder="Classe">
 <button onclick="addAluno()">Adicionar</button>
 
-<hr>
-
 <div id="lista"></div>
 
 <script>
-/* =========================
-   CONFIG
-========================= */
 
-const URL = "https://vfuebmcphgzwzjrgqadb.supabase.co/rest/v1/alunos";
-const KEY = "sb_publishable_vcF6RN4YQJQ6PY4O5QOhLw_CvvJALr6";
-
-let alunos=[];
+let dados = [];
 let anoAtual="6";
 
 
 /* =========================
-   HELPERS API
+   CARREGAR dados.json automático
 ========================= */
-
-async function api(method, body=null, filtro=""){
-  const r = await fetch(URL+filtro,{
-    method,
-    headers:{
-      "apikey":KEY,
-      "Authorization":"Bearer "+KEY,
-      "Content-Type":"application/json",
-      "Prefer":"return=representation"
-    },
-    body: body ? JSON.stringify(body) : null
+fetch("dados.json")
+  .then(r=>r.json())
+  .then(j=>{
+    dados=j;
+    render();
   });
-
-  return r.json();
-}
-
-
-/* =========================
-   CARREGAR
-========================= */
-
-async function carregar(){
-  alunos = await api("GET");
-  render();
-}
-
-carregar();
 
 
 /* =========================
@@ -115,6 +85,8 @@ carregar();
 ========================= */
 function trocarAno(a){
   anoAtual=a;
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("ativa"));
+  document.getElementById("tab"+a).classList.add("ativa");
   render();
 }
 
@@ -122,107 +94,72 @@ function trocarAno(a){
 /* =========================
    ADICIONAR
 ========================= */
-async function addAluno(){
+function addAluno(){
+  const nome=nomeInput.value;
+  const classe=classeInput.value;
 
-  if(!nome.value) return;
+  if(!nome) return;
 
-  await api("POST",{
+  dados.push({
     ano:anoAtual,
-    nome:nome.value,
-    classe:classe.value,
+    nome,
+    classe,
     nivel:1,
-    xp:0,
-    foto:""
+    xp:0
   });
 
-  nome.value="";
-  classe.value="";
+  nomeInput.value="";
+  classeInput.value="";
 
-  carregar();
-}
-
-
-/* =========================
-   BUSCAR
-========================= */
-function get(id){
-  return alunos.find(a=>a.id===id);
+  render();
 }
 
 
 /* =========================
    XP
 ========================= */
-async function addXP(id,val){
+function addXP(i,val){
+  let a=getAno()[i];
+  a.xp+=val;
 
-  let a=get(id);
-
-  let xp=a.xp+val;
-  let nivel=a.nivel;
-
-  while(xp>=1000){
-    xp-=1000;
-    nivel++;
+  while(a.xp>=1000){
+    a.xp-=1000;
+    a.nivel++;
   }
 
-  await api("PATCH",{xp,nivel},`?id=eq.${id}`);
-
-  carregar();
+  render();
 }
 
 
 /* =========================
-   EDITAR
+   EDITAR / EXCLUIR
 ========================= */
-async function editar(id){
-
-  let a=get(id);
+function editar(i){
+  let a=getAno()[i];
 
   const n=prompt("Nome:",a.nome);
   if(!n) return;
 
   const c=prompt("Classe:",a.classe);
 
-  await api("PATCH",{nome:n,classe:c},`?id=eq.${id}`);
+  a.nome=n;
+  a.classe=c;
 
-  carregar();
+  render();
+}
+
+function excluir(i){
+  const lista=getAno();
+  dados.splice(dados.indexOf(lista[i]),1);
+  render();
 }
 
 
 /* =========================
-   EXCLUIR
+   LISTA POR ANO
 ========================= */
-async function excluir(id){
-
-  if(!confirm("Excluir aluno?")) return;
-
-  await api("DELETE",null,`?id=eq.${id}`);
-
-  carregar();
-}
-
-
-/* =========================
-   FOTO
-========================= */
-function uploadFoto(id){
-
-  const input=document.createElement("input");
-  input.type="file";
-  input.accept="image/*";
-
-  input.onchange=()=>{
-    const reader=new FileReader();
-
-    reader.onload=async ()=>{
-      await api("PATCH",{foto:reader.result},`?id=eq.${id}`);
-      carregar();
-    };
-
-    reader.readAsDataURL(input.files[0]);
-  };
-
-  input.click();
+function getAno(){
+  return dados.filter(x=>x.ano===anoAtual);
 }
 
 
@@ -230,43 +167,64 @@ function uploadFoto(id){
    RENDER
 ========================= */
 function render(){
-
   lista.innerHTML="";
 
-  alunos
-    .filter(a=>a.ano===anoAtual)
-    .sort((a,b)=>(b.nivel*1000+b.xp)-(a.nivel*1000+a.xp))
-    .forEach(a=>{
+  getAno()
+  .sort((a,b)=>(b.nivel*1000+b.xp)-(a.nivel*1000+a.xp))
+  .forEach((a,i)=>{
 
-      let pct=(a.xp/1000)*100;
+    let pct=(a.xp/1000)*100;
 
-      lista.innerHTML+=`
-        <div class="card">
-          <img class="foto" src="${a.foto||''}">
-          <div style="flex:1">
-            <strong>${a.nome}</strong> — Nv ${a.nivel}<br>
-            ${a.classe}
+    lista.innerHTML+=`
+      <div class="card">
+        <div style="flex:1">
+          <strong>${a.nome}</strong> — Nv ${a.nivel}<br>
+          ${a.classe}
 
-            <div class="bar">
-              <div class="fill" style="width:${pct}%"></div>
-            </div>
+          <div class="bar">
+            <div class="fill" style="width:${pct}%"></div>
+          </div>
 
-            XP ${a.xp}/1000<br>
+          XP ${a.xp}/1000
 
-            <button onclick="addXP(${a.id},5)">+5</button>
-            <button onclick="addXP(${a.id},10)">+10</button>
-            <button onclick="addXP(${a.id},20)">+20</button>
-            <button onclick="addXP(${a.id},30)">+30</button>
-            <button onclick="addXP(${a.id},50)">+50</button>
-
-            <button onclick="editar(${a.id})">✏️</button>
-            <button onclick="excluir(${a.id})">🗑️</button>
-            <button onclick="uploadFoto(${a.id})">📷</button>
+          <div class="botoes">
+            <button onclick="addXP(${i},5)">+5</button>
+            <button onclick="addXP(${i},10)">+10</button>
+            <button onclick="addXP(${i},20)">+20</button>
+            <button onclick="addXP(${i},30)">+30</button>
+            <button onclick="addXP(${i},50)">+50</button>
+            <button onclick="editar(${i})">✏️</button>
+            <button onclick="excluir(${i})">🗑️</button>
           </div>
         </div>
-      `;
-    });
+      </div>
+    `;
+  });
 }
+
+
+/* =========================
+   SALVAR / CARREGAR ARQUIVO
+========================= */
+function baixar(){
+  const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="dados.json";
+  a.click();
+}
+
+function carregarArquivo(e){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    dados=JSON.parse(reader.result);
+    render();
+  };
+  reader.readAsText(e.target.files[0]);
+}
+
+trocarAno("6");
+
 </script>
 </body>
 </html>
